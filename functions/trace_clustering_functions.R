@@ -81,6 +81,8 @@ cluster_eventlog <- function(eventlog, m, ...) {
 }
 
 summarise_clusters <- function(eventlog) {
+  require(dplyr)
+  
   stopifnot("cluster" %in% colnames(eventlog))
   
   cluster_summary <- eventlog %>%
