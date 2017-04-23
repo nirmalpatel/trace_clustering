@@ -1,0 +1,131 @@
+---
+title: "Trace Clustering Demo 1"
+author: "Nirmal"
+date: "23 April 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(ggplot2)
+library(DT)
+source("functions/trace_clustering_functions.R")
+```
+
+## Data import
+
+Data is read from CSV files which are exported from ProM. Here I'm using gzipped CSV but `read_eventlog_csv` works with uncompressed files too.
+
+```{r data_import, cache = TRUE}
+log <- read_eventlog_csv("data/hospital_log.csv.gz")
+```
+
+There are `r nrow(log)` events in the event log we just read in. Let us look at some summary numbers.
+
+## Log summary
+
+```{r log_summary}
+log_summmary <- summarise_log(log)
+print(log_summmary)
+```
+
+## Case summary
+
+Here are simple summary metrics for each case:
+
+```{r case_summary}
+case_summary <- summarise_cases(log)
+datatable(case_summary)
+```
+
+When we sort the table by `trace_length`, we see that there are many traces with trace lengh 1. Let us look at a histogram of `trace_length`.
+
+```{r}
+case_summary %>%
+  ggplot(aes(trace_length)) +
+  geom_histogram(fill = "steelblue", color = "white", bins = 50)
+```
+
+When doing trace clustering using edit distance, distance between all traces of length 1 would be 1, and so they would get clustered together early on in agglomerative clustering methods.
+
+## Distance matrix
+
+```{r distance_matrix, cache = TRUE}
+distance_matrix <- trace_distmatrix(log)
+```
+
+R has a special class to store distances, called `dist`. We can check what class `distance_matrix` has:
+
+```{r}
+print(class(distance_matrix))
+```
+
+Internally, dist is a symmetri matrix (I guess). Let us look at 5 rows and 5 columns of the matrix:
+
+```{r}
+as.matrix(distance_matrix)[1:5, 1:5]
+```
+
+We see the edit distances between cases. These distances are used by agglomerative hierarchical clustering algorithm to cluster traces.
+
+## Clustering
+
+R's `hclust()` function can direclty use objects of `dist` class and perform clustering. This function provides various agglomeration methods. So argument to `hclust()`'s `method` argument can be any of these:
+
+1. ward.D
+2. ward.D2
+3. single
+4. complete
+5. average
+6. mcquitty
+7. median
+8. centroid
+
+I will use average and ward.D for this demo.
+
+### Average linkage
+
+```{r clustering_average}
+mod_average <- hclust(distance_matrix, method = "average")
+```
+
+```{r}
+plot(mod_average, labels = FALSE, xlab = "", sub = "", main = "Cluster Dendrogram for Average Linkage")
+```
+
+### Ward's Method
+
+```{r clustering_ward}
+mod_ward <- hclust(distance_matrix, method = "ward.D")
+```
+
+```{r}
+plot(mod_ward, labels = FALSE, xlab = "", sub = "", main = "Cluster Dendrogram for Ward's Method")
+```
+
+### Which method?
+
+Different agglomeration methods try to optimize for different things. Average linkage merges clusters or data points based on average trace distance, while Ward's method tries to minimize within cluster variance.
+
+For this document, I will use average linkage.
+
+### Obtaining clusters
+
+To get the clusters, we have to cut the tree at a particular height or directly specify number of clusters. Since there is lot of nesting, I ended up cutting this tree at height of 20.
+
+```{r}
+log_with_clusters <- cluster_eventlog(log, mod_average, h = 20)
+```
+
+In code above, `h = 20` cuts the tree at height 20. Similarly, we can say `k = 500` which will cut the tree at height where it produces 500 clusters.
+
+### Cluster summaries
+
+```{r}
+cluster_summary <- summarise_clusters(log_with_clusters)
+datatable(cluster_summary)
+```
+
+## Data export
+
+You can use `demo_1_export.R` for data extraction of top clusters from cluster summary table.

@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+demo_1.html
+demo_1_cache/
+demo_1_files/
+
+export/
