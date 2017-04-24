@@ -117,9 +117,13 @@ write_clusters <- function(eventlog, cluster_nums, subdirname = "eventlog_cluste
     cluster_number <- cluster_data[["cluster"]][[1]]
     
     if (cluster_number %in% cluster_nums) {
+      
       output_filename <- paste0(filename_prefix, cluster_number, ".csv")
       output_path <- file.path(subdirname, output_filename)
-      write_csv(cluster_data, output_path, na = "")
+      output_data <- cluster_data %>%
+        select(case, event, completeTime)
+      
+      write_csv(output_data, output_path, na = "")
       cat("Exported cluster", cluster_number, "to", output_path, "\n")
     }
   })
